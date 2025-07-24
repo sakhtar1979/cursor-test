@@ -1,0 +1,247 @@
+version: '3.8'
+
+services:
+  # API Gateway
+  api-gateway:
+    build: ./services/api-gateway
+    ports:
+      - "8000:8000"
+    environment:
+      - ENV=development
+      - DATABASE_URL=postgresql://mintflow:password@postgres:5432/mintflow
+      - REDIS_URL=redis://redis:6379/0
+      - KAFKA_BOOTSTRAP_SERVERS=kafka:9092
+    depends_on:
+      - postgres
+      - redis
+      - kafka
+    volumes:
+      - ./services/api-gateway:/app
+    networks:
+      - mintflow-network
+
+  # Authentication Service
+  auth-service:
+    build: ./services/auth
+    ports:
+      - "8001:8000"
+    environment:
+      - ENV=development
+      - DATABASE_URL=postgresql://mintflow:password@postgres:5432/mintflow
+      - REDIS_URL=redis://redis:6379/1
+      - JWT_SECRET=your-super-secret-jwt-key
+    depends_on:
+      - postgres
+      - redis
+    volumes:
+      - ./services/auth:/app
+    networks:
+      - mintflow-network
+
+  # User Service
+  user-service:
+    build: ./services/user
+    ports:
+      - "8002:8000"
+    environment:
+      - ENV=development
+      - DATABASE_URL=postgresql://mintflow:password@postgres:5432/mintflow
+      - REDIS_URL=redis://redis:6379/2
+    depends_on:
+      - postgres
+      - redis
+    volumes:
+      - ./services/user:/app
+    networks:
+      - mintflow-network
+
+  # Transaction Service
+  transaction-service:
+    build: ./services/transaction
+    ports:
+      - "8003:8000"
+    environment:
+      - ENV=development
+      - DATABASE_URL=postgresql://mintflow:password@postgres:5432/mintflow
+      - REDIS_URL=redis://redis:6379/3
+      - KAFKA_BOOTSTRAP_SERVERS=kafka:9092
+    depends_on:
+      - postgres
+      - redis
+      - kafka
+    volumes:
+      - ./services/transaction:/app
+    networks:
+      - mintflow-network
+
+  # Banking Service
+  banking-service:
+    build: ./services/banking
+    ports:
+      - "8004:8000"
+    environment:
+      - ENV=development
+      - DATABASE_URL=postgresql://mintflow:password@postgres:5432/mintflow
+      - REDIS_URL=redis://redis:6379/4
+      - PLAID_CLIENT_ID=your-plaid-client-id
+      - PLAID_SECRET=your-plaid-secret
+      - PLAID_ENV=sandbox
+    depends_on:
+      - postgres
+      - redis
+    volumes:
+      - ./services/banking:/app
+    networks:
+      - mintflow-network
+
+  # AI/ML Service
+  ai-service:
+    build: ./services/ai
+    ports:
+      - "8005:8000"
+    environment:
+      - ENV=development
+      - DATABASE_URL=postgresql://mintflow:password@postgres:5432/mintflow
+      - REDIS_URL=redis://redis:6379/5
+    depends_on:
+      - postgres
+      - redis
+    volumes:
+      - ./services/ai:/app
+    networks:
+      - mintflow-network
+
+  # PostgreSQL Database
+  postgres:
+    image: postgres:15-alpine
+    environment:
+      - POSTGRES_DB=mintflow
+      - POSTGRES_USER=mintflow
+      - POSTGRES_PASSWORD=password
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./db/init.sql:/docker-entrypoint-initdb.d/init.sql
+    networks:
+      - mintflow-network
+
+  # Redis Cache
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - mintflow-network
+
+  # Apache Kafka
+  zookeeper:
+    image: confluentinc/cp-zookeeper:latest
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_TICK_TIME: 2000
+    networks:
+      - mintflow-network
+
+  kafka:
+    image: confluentinc/cp-kafka:latest
+    depends_on:
+      - zookeeper
+    ports:
+      - "9092:9092"
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+    networks:
+      - mintflow-network
+
+  # Elasticsearch
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.11.0
+    environment:
+      - discovery.type=single-node
+      - xpack.security.enabled=false
+    ports:
+      - "9200:9200"
+    volumes:
+      - elasticsearch_data:/usr/share/elasticsearch/data
+    networks:
+      - mintflow-network
+
+  # Prometheus Monitoring
+  prometheus:
+    image: prom/prometheus:latest
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml
+      - prometheus_data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/etc/prometheus/console_libraries'
+      - '--web.console.templates=/etc/prometheus/consoles'
+    networks:
+      - mintflow-network
+
+  # Grafana Dashboard
+  grafana:
+    image: grafana/grafana:latest
+    ports:
+      - "3001:3000"
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./monitoring/grafana/dashboards:/etc/grafana/provisioning/dashboards
+      - ./monitoring/grafana/datasources:/etc/grafana/provisioning/datasources
+    networks:
+      - mintflow-network
+
+  # Celery Worker
+  celery-worker:
+    build: ./services/worker
+    environment:
+      - ENV=development
+      - DATABASE_URL=postgresql://mintflow:password@postgres:5432/mintflow
+      - REDIS_URL=redis://redis:6379/6
+      - KAFKA_BOOTSTRAP_SERVERS=kafka:9092
+    depends_on:
+      - postgres
+      - redis
+      - kafka
+    volumes:
+      - ./services/worker:/app
+    networks:
+      - mintflow-network
+
+  # Celery Beat Scheduler
+  celery-beat:
+    build: ./services/worker
+    command: celery -A tasks beat --loglevel=info
+    environment:
+      - ENV=development
+      - DATABASE_URL=postgresql://mintflow:password@postgres:5432/mintflow
+      - REDIS_URL=redis://redis:6379/6
+    depends_on:
+      - postgres
+      - redis
+    volumes:
+      - ./services/worker:/app
+    networks:
+      - mintflow-network
+
+volumes:
+  postgres_data:
+  redis_data:
+  elasticsearch_data:
+  prometheus_data:
+  grafana_data:
+
+networks:
+  mintflow-network:
+    driver: bridge
