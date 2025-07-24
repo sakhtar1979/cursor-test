@@ -1,0 +1,246 @@
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+rule_files:
+  - "rules/*.yml"
+
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets:
+          - alertmanager:9093
+
+scrape_configs:
+  # Prometheus itself
+  - job_name: 'prometheus'
+    static_configs:
+      - targets: ['localhost:9090']
+
+  # API Gateway
+  - job_name: 'api-gateway'
+    static_configs:
+      - targets: ['api-gateway:8000']
+    metrics_path: '/metrics'
+    scrape_interval: 10s
+
+  # Authentication Service
+  - job_name: 'auth-service'
+    static_configs:
+      - targets: ['auth-service:8000']
+    metrics_path: '/metrics'
+    scrape_interval: 15s
+
+  # User Service
+  - job_name: 'user-service'
+    static_configs:
+      - targets: ['user-service:8000']
+    metrics_path: '/metrics'
+    scrape_interval: 15s
+
+  # Transaction Service
+  - job_name: 'transaction-service'
+    static_configs:
+      - targets: ['transaction-service:8000']
+    metrics_path: '/metrics'
+    scrape_interval: 10s
+
+  # Banking Service
+  - job_name: 'banking-service'
+    static_configs:
+      - targets: ['banking-service:8000']
+    metrics_path: '/metrics'
+    scrape_interval: 15s
+
+  # AI/ML Service
+  - job_name: 'ai-service'
+    static_configs:
+      - targets: ['ai-service:8000']
+    metrics_path: '/metrics'
+    scrape_interval: 30s
+
+  # PostgreSQL Exporter
+  - job_name: 'postgres'
+    static_configs:
+      - targets: ['postgres-exporter:9187']
+    scrape_interval: 30s
+
+  # Redis Exporter
+  - job_name: 'redis'
+    static_configs:
+      - targets: ['redis-exporter:9121']
+    scrape_interval: 30s
+
+  # Kafka Exporter
+  - job_name: 'kafka'
+    static_configs:
+      - targets: ['kafka-exporter:9308']
+    scrape_interval: 30s
+
+  # Node Exporter (System metrics)
+  - job_name: 'node'
+    static_configs:
+      - targets: ['node-exporter:9100']
+    scrape_interval: 30s
+
+  # cAdvisor (Container metrics)
+  - job_name: 'cadvisor'
+    static_configs:
+      - targets: ['cadvisor:8080']
+    scrape_interval: 30s
+
+  # Elasticsearch Exporter
+  - job_name: 'elasticsearch'
+    static_configs:
+      - targets: ['elasticsearch-exporter:9114']
+    scrape_interval: 30s
+
+  # Custom application metrics
+  - job_name: 'mintflow-business-metrics'
+    static_configs:
+      - targets: ['api-gateway:8000']
+    metrics_path: '/business-metrics'
+    scrape_interval: 60s
+
+# Recording rules for performance
+recording_rules:
+  - name: mintflow.rules
+    rules:
+      # Request rate per service
+      - record: mintflow:request_rate_5m
+        expr: rate(gateway_requests_total[5m])
+      
+      # Error rate per service
+      - record: mintflow:error_rate_5m
+        expr: rate(gateway_requests_total{status=~"5.."}[5m]) / rate(gateway_requests_total[5m])
+      
+      # Response time percentiles
+      - record: mintflow:response_time_p95
+        expr: histogram_quantile(0.95, rate(gateway_request_duration_seconds_bucket[5m]))
+      
+      - record: mintflow:response_time_p99
+        expr: histogram_quantile(0.99, rate(gateway_request_duration_seconds_bucket[5m]))
+
+# Alert rules
+alerting_rules:
+  - name: mintflow.alerts
+    rules:
+      # High error rate
+      - alert: HighErrorRate
+        expr: mintflow:error_rate_5m > 0.05
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High error rate detected"
+          description: "Error rate is {{ $value }} for the last 5 minutes"
+      
+      # High response time
+      - alert: HighResponseTime
+        expr: mintflow:response_time_p95 > 2
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High response time detected"
+          description: "95th percentile response time is {{ $value }}s"
+      
+      # Service down
+      - alert: ServiceDown
+        expr: up == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Service {{ $labels.job }} is down"
+          description: "Service {{ $labels.job }} has been down for more than 1 minute"
+      
+      # High CPU usage
+      - alert: HighCPUUsage
+        expr: 100 - (avg by(instance) (irate(node_cpu_seconds_total{mode="idle"}[5m])) * 100) > 80
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High CPU usage detected"
+          description: "CPU usage is {{ $value }}% on {{ $labels.instance }}"
+      
+      # High memory usage
+      - alert: HighMemoryUsage
+        expr: (1 - (node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes)) * 100 > 85
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High memory usage detected"
+          description: "Memory usage is {{ $value }}% on {{ $labels.instance }}"
+      
+      # Database connection issues
+      - alert: DatabaseConnectionHigh
+        expr: pg_stat_activity_count > 80
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High database connections"
+          description: "Database has {{ $value }} active connections"
+      
+      # Redis connection issues
+      - alert: RedisConnectionHigh
+        expr: redis_connected_clients > 100
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High Redis connections"
+          description: "Redis has {{ $value }} connected clients"
+      
+      # Kafka lag
+      - alert: KafkaConsumerLag
+        expr: kafka_consumer_lag_sum > 10000
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High Kafka consumer lag"
+          description: "Kafka consumer lag is {{ $value }}"
+      
+      # Disk space
+      - alert: DiskSpaceHigh
+        expr: (1 - (node_filesystem_avail_bytes / node_filesystem_size_bytes)) * 100 > 85
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High disk space usage"
+          description: "Disk usage is {{ $value }}% on {{ $labels.instance }}"
+      
+      # Banking sync failures
+      - alert: BankingSyncFailures
+        expr: increase(banking_sync_failures_total[1h]) > 10
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High banking sync failures"
+          description: "{{ $value }} banking sync failures in the last hour"
+      
+      # Authentication failures
+      - alert: HighAuthFailures
+        expr: increase(auth_failures_total[5m]) > 50
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High authentication failures"
+          description: "{{ $value }} authentication failures in the last 5 minutes"
+      
+      # Transaction processing delays
+      - alert: TransactionProcessingDelay
+        expr: transaction_processing_delay_seconds > 300
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Transaction processing delay"
+          description: "Transaction processing delay is {{ $value }} seconds"
