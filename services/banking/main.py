@@ -209,15 +209,31 @@ def get_db():
         db.close()
 
 def get_current_user(token: str = Depends(security)):
-    """Extract user from JWT token (simplified for demo)"""
-    # In production, this would verify the JWT token
-    # For now, we'll extract user_id from the token directly
+    """Extract user from JWT token with proper verification"""
     try:
-        # This is a simplified version - in production use proper JWT verification
+        # Import the JWT verification function from auth service
         import jwt
-        payload = jwt.decode(token.credentials, options={"verify_signature": False})
-        return payload.get("sub")
-    except:
+        import os
+        
+        # Get the secret key from environment
+        secret_key = os.getenv("JWT_SECRET", "your-secret-key")
+        
+        # Decode and verify the JWT token
+        payload = jwt.decode(
+            token.credentials, 
+            secret_key, 
+            algorithms=["HS256"],
+            options={"verify_exp": True}
+        )
+        
+        user_id = payload.get("sub")
+        if not user_id:
+            raise HTTPException(status_code=401, detail="Invalid token payload")
+            
+        return user_id
+    except jwt.ExpiredSignatureError:
+        raise HTTPException(status_code=401, detail="Token has expired")
+    except jwt.InvalidTokenError:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid token"
