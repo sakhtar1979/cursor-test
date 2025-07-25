@@ -43,6 +43,9 @@ import { initializeAnalytics } from './services/analytics';
 // Utils
 import { navigationRef } from './navigation/RootNavigation';
 
+// Types
+import { RootStackParamList } from './types/navigation';
+
 const Stack = createNativeStackNavigator();
 
 // Create React Query client
@@ -166,10 +169,10 @@ const AppContent: React.FC = () => {
           
           if (data?.type === 'budget_alert') {
             // Navigate to budget screen
-            navigationRef.navigate('Budget' as never);
+            navigationRef.navigate('Budget');
           } else if (data?.type === 'transaction_update') {
             // Navigate to transactions
-            navigationRef.navigate('Transactions' as never);
+            navigationRef.navigate('Transactions');
           }
         }
       },

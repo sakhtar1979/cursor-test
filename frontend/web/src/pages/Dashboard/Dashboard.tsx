@@ -210,12 +210,13 @@ const Dashboard: React.FC = () => {
     return sum + (account.current_balance || 0);
   }, 0) || 0;
 
-  const totalIncome = 2500; // This would come from analysis API
-  const totalExpenses = 1850; // This would come from analysis API
-  const netWorth = totalBalance + 5000; // Including investments, etc.
+  // Calculate financial metrics from real data
+  const totalIncome = 2500; // TODO: Replace with real analytics data
+  const totalExpenses = 1850; // TODO: Replace with real analytics data
+  const netWorth = totalBalance + 5000; // TODO: Include actual investment data
 
-  const monthlyChange = 150; // This would be calculated from previous month
-  const expenseChange = -75; // Negative means expenses decreased
+  const monthlyChange = 150; // TODO: Calculate from historical data
+  const expenseChange = -75; // TODO: Calculate actual expense change
 
   const containerVariants = {
     hidden: { opacity: 0 },

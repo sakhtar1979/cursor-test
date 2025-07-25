@@ -10,10 +10,12 @@ import {
   StatusBar,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useNavigation } from '@react-navigation/native';
 import LinearGradient from 'react-native-linear-gradient';
 import Icon from 'react-native-vector-icons/MaterialIcons';
 import { moderateScale, scale, verticalScale } from 'react-native-size-matters';
+
+// Types
+import { DashboardNavigationProp } from '../types/navigation';
 
 // Components
 import Card from '../components/Card';
@@ -32,6 +34,7 @@ import { useAccounts } from '../hooks/useAccounts';
 import { useTransactions } from '../hooks/useTransactions';
 import { useBudgets } from '../hooks/useBudgets';
 import { useInsights } from '../hooks/useInsights';
+import { useAnalytics } from '../hooks/useAnalytics';
 
 // Utils
 import { formatCurrency, formatTime } from '../utils/formatters';
@@ -39,11 +42,12 @@ import { theme } from '../styles/theme';
 
 const { width } = Dimensions.get('window');
 
-interface DashboardScreenProps {}
+interface DashboardScreenProps {
+  navigation: DashboardNavigationProp;
+}
 
-const DashboardScreen: React.FC<DashboardScreenProps> = () => {
+const DashboardScreen: React.FC<DashboardScreenProps> = ({ navigation }) => {
   const insets = useSafeAreaInsets();
-  const navigation = useNavigation();
   const { user } = useAuth();
   
   const { 
@@ -70,6 +74,12 @@ const DashboardScreen: React.FC<DashboardScreenProps> = () => {
     refetch: refetchInsights 
   } = useInsights();
 
+  const { 
+    data: analytics, 
+    isLoading: analyticsLoading,
+    refetch: refetchAnalytics 
+  } = useAnalytics();
+
   const [refreshing, setRefreshing] = useState(false);
   const [showAmounts, setShowAmounts] = useState(true);
   const [lastUpdated, setLastUpdated] = useState(new Date());
@@ -79,12 +89,12 @@ const DashboardScreen: React.FC<DashboardScreenProps> = () => {
     return sum + (account.current_balance || 0);
   }, 0) || 0;
 
-  const monthlyIncome = 4200; // This would come from analysis API
-  const monthlyExpenses = 3150; // This would come from analysis API
+  const monthlyIncome = analytics?.monthlyIncome || 0;
+  const monthlyExpenses = analytics?.monthlyExpenses || 0;
   const netWorth = totalBalance + 15000; // Including investments, etc.
 
-  const monthlyChange = 250;
-  const monthlyChangePercent = 3.2;
+  const monthlyChange = analytics?.monthlyChange || 0;
+  const monthlyChangePercent = analytics?.monthlyChangePercent || 0;
 
   // Refresh handler
   const onRefresh = useCallback(async () => {
@@ -95,6 +105,7 @@ const DashboardScreen: React.FC<DashboardScreenProps> = () => {
         refetchTransactions(),
         refetchBudgets(),
         refetchInsights(),
+        refetchAnalytics(),
       ]);
       setLastUpdated(new Date());
     } catch (error) {
@@ -102,7 +113,7 @@ const DashboardScreen: React.FC<DashboardScreenProps> = () => {
     } finally {
       setRefreshing(false);
     }
-  }, [refetchAccounts, refetchTransactions, refetchBudgets, refetchInsights]);
+  }, [refetchAccounts, refetchTransactions, refetchBudgets, refetchInsights, refetchAnalytics]);
 
   // Auto-refresh every 5 minutes
   useEffect(() => {
@@ -118,29 +129,29 @@ const DashboardScreen: React.FC<DashboardScreenProps> = () => {
       title: 'Add Account',
       icon: 'account-balance',
       color: theme.colors.primary,
-      onPress: () => navigation.navigate('ConnectBank' as never),
+      onPress: () => navigation.navigate('ConnectBank'),
     },
     {
       title: 'Categorize',
       icon: 'category',
       color: theme.colors.secondary,
-      onPress: () => navigation.navigate('Transactions' as never),
+      onPress: () => navigation.navigate('Transactions'),
     },
     {
       title: 'Set Budget',
       icon: 'pie-chart',
       color: theme.colors.success,
-      onPress: () => navigation.navigate('Budget' as never),
+      onPress: () => navigation.navigate('Budget'),
     },
     {
       title: 'Add Goal',
       icon: 'flag',
       color: theme.colors.warning,
-      onPress: () => navigation.navigate('Goals' as never),
+      onPress: () => navigation.navigate('Goals'),
     },
   ];
 
-  if (accountsLoading && !accounts) {
+  if ((accountsLoading && !accounts) || (analyticsLoading && !analytics)) {
     return (
       <View style={styles.loadingContainer}>
         <LoadingSpinner size="large" />
@@ -165,7 +176,7 @@ const DashboardScreen: React.FC<DashboardScreenProps> = () => {
           
           <TouchableOpacity
             style={styles.profileButton}
-            onPress={() => navigation.navigate('Profile' as never)}
+            onPress={() => navigation.navigate('Profile')}
           >
             <Icon name="account-circle" size={moderateScale(32)} color="#fff" />
           </TouchableOpacity>
@@ -282,7 +293,7 @@ const DashboardScreen: React.FC<DashboardScreenProps> = () => {
           <View style={styles.section}>
             <View style={styles.sectionHeader}>
               <Text style={styles.sectionTitle}>Budget Progress</Text>
-              <TouchableOpacity onPress={() => navigation.navigate('Budget' as never)}>
+              <TouchableOpacity onPress={() => navigation.navigate('Budget')}>
                 <Text style={styles.seeAllText}>See All</Text>
               </TouchableOpacity>
             </View>
@@ -294,7 +305,7 @@ const DashboardScreen: React.FC<DashboardScreenProps> = () => {
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
             <Text style={styles.sectionTitle}>Recent Transactions</Text>
-            <TouchableOpacity onPress={() => navigation.navigate('Transactions' as never)}>
+            <TouchableOpacity onPress={() => navigation.navigate('Transactions')}>
               <Text style={styles.seeAllText}>See All</Text>
             </TouchableOpacity>
           </View>
@@ -313,7 +324,7 @@ const DashboardScreen: React.FC<DashboardScreenProps> = () => {
           <View style={styles.section}>
             <View style={styles.sectionHeader}>
               <Text style={styles.sectionTitle}>AI Insights</Text>
-              <TouchableOpacity onPress={() => navigation.navigate('Insights' as never)}>
+              <TouchableOpacity onPress={() => navigation.navigate('Insights')}>
                 <Text style={styles.seeAllText}>See All</Text>
               </TouchableOpacity>
             </View>
