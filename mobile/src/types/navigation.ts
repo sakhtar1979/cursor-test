@@ -1,100 +1,161 @@
-import { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
-import { CompositeNavigationProp, RouteProp } from '@react-navigation/native';
+/**
+ * Navigation Types for MintFlow Mobile App
+ * Provides comprehensive type safety for React Navigation
+ */
 
-// Define the root stack parameter list
+import { StackScreenProps } from '@react-navigation/stack';
+import { BottomTabScreenProps } from '@react-navigation/bottom-tabs';
+import { CompositeScreenProps } from '@react-navigation/native';
+
+// Root Stack Navigator types
 export type RootStackParamList = {
-  // Auth Stack
-  Welcome: undefined;
-  Login: undefined;
-  Register: undefined;
-  ForgotPassword: undefined;
-  
-  // Main App Stack
+  Auth: undefined;
   Main: undefined;
-  ConnectBank: undefined;
-  TransactionDetails: { transactionId: string };
-  BudgetDetails: { budgetId: string };
-  GoalDetails: { goalId: string };
-  Profile: undefined;
+  Onboarding: undefined;
+  LinkBank: { returnTo?: keyof MainTabParamList };
   Settings: undefined;
+  Profile: undefined;
+  Security: undefined;
+  TransactionDetail: { transactionId: string };
+  AccountDetail: { accountId: string };
+  BudgetDetail: { budgetId: string };
+  GoalDetail: { goalId: string };
 };
 
-// Define the main tab parameter list
+// Main Tab Navigator types
 export type MainTabParamList = {
   Dashboard: undefined;
   Accounts: undefined;
   Transactions: undefined;
-  Budget: undefined;
+  Budgets: undefined;
   Goals: undefined;
   Insights: undefined;
 };
 
-// Composite navigation prop for screens that can navigate to both stack and tab screens
-export type AppNavigationProp = CompositeNavigationProp<
-  NativeStackNavigationProp<RootStackParamList>,
-  BottomTabNavigationProp<MainTabParamList>
->;
-
-// Individual screen navigation props
-export type DashboardNavigationProp = CompositeNavigationProp<
-  BottomTabNavigationProp<MainTabParamList, 'Dashboard'>,
-  NativeStackNavigationProp<RootStackParamList>
->;
-
-export type AccountsNavigationProp = CompositeNavigationProp<
-  BottomTabNavigationProp<MainTabParamList, 'Accounts'>,
-  NativeStackNavigationProp<RootStackParamList>
->;
-
-export type TransactionsNavigationProp = CompositeNavigationProp<
-  BottomTabNavigationProp<MainTabParamList, 'Transactions'>,
-  NativeStackNavigationProp<RootStackParamList>
->;
-
-export type BudgetNavigationProp = CompositeNavigationProp<
-  BottomTabNavigationProp<MainTabParamList, 'Budget'>,
-  NativeStackNavigationProp<RootStackParamList>
->;
-
-export type GoalsNavigationProp = CompositeNavigationProp<
-  BottomTabNavigationProp<MainTabParamList, 'Goals'>,
-  NativeStackNavigationProp<RootStackParamList>
->;
-
-export type InsightsNavigationProp = CompositeNavigationProp<
-  BottomTabNavigationProp<MainTabParamList, 'Insights'>,
-  NativeStackNavigationProp<RootStackParamList>
->;
-
-// Route props
-export type DashboardRouteProp = RouteProp<MainTabParamList, 'Dashboard'>;
-export type TransactionDetailsRouteProp = RouteProp<RootStackParamList, 'TransactionDetails'>;
-export type BudgetDetailsRouteProp = RouteProp<RootStackParamList, 'BudgetDetails'>;
-export type GoalDetailsRouteProp = RouteProp<RootStackParamList, 'GoalDetails'>;
-
-// Screen props combining navigation and route
-export type DashboardScreenProps = {
-  navigation: DashboardNavigationProp;
-  route: DashboardRouteProp;
+// Auth Stack Navigator types
+export type AuthStackParamList = {
+  Login: undefined;
+  Register: undefined;
+  ForgotPassword: undefined;
+  VerifyEmail: { email: string };
+  ResetPassword: { token: string };
+  MFASetup: undefined;
+  MFAVerify: { userId: string };
 };
 
-export type TransactionDetailsScreenProps = {
-  navigation: AppNavigationProp;
-  route: TransactionDetailsRouteProp;
+// Screen prop types for type-safe navigation
+export type RootStackScreenProps<T extends keyof RootStackParamList> = 
+  StackScreenProps<RootStackParamList, T>;
+
+export type MainTabScreenProps<T extends keyof MainTabParamList> = 
+  CompositeScreenProps<
+    BottomTabScreenProps<MainTabParamList, T>,
+    RootStackScreenProps<keyof RootStackParamList>
+  >;
+
+export type AuthStackScreenProps<T extends keyof AuthStackParamList> = 
+  StackScreenProps<AuthStackParamList, T>;
+
+// Navigation prop types for components
+export type NavigationProps = {
+  navigation: any; // Will be properly typed based on screen
+  route: any; // Will be properly typed based on screen
 };
 
-export type BudgetDetailsScreenProps = {
-  navigation: AppNavigationProp;
-  route: BudgetDetailsRouteProp;
+// Common navigation parameters
+export type NavigationParams = {
+  accountId?: string;
+  transactionId?: string;
+  budgetId?: string;
+  goalId?: string;
+  returnTo?: string;
+  refresh?: boolean;
 };
 
-export type GoalDetailsScreenProps = {
-  navigation: AppNavigationProp;
-  route: GoalDetailsRouteProp;
+// Transaction related navigation types
+export type TransactionStackParamList = {
+  TransactionList: {
+    accountId?: string;
+    categoryId?: string;
+    dateRange?: [Date, Date];
+  };
+  TransactionCreate: {
+    accountId?: string;
+    category?: string;
+    amount?: number;
+  };
+  TransactionEdit: {
+    transactionId: string;
+  };
+  TransactionSearch: undefined;
+  TransactionCategories: undefined;
 };
 
-// Navigation reference type
+// Account related navigation types
+export type AccountStackParamList = {
+  AccountList: undefined;
+  AccountDetail: {
+    accountId: string;
+    tab?: 'overview' | 'transactions' | 'statements';
+  };
+  AccountSettings: {
+    accountId: string;
+  };
+  LinkNewAccount: {
+    institutionId?: string;
+  };
+};
+
+// Budget related navigation types
+export type BudgetStackParamList = {
+  BudgetList: undefined;
+  BudgetDetail: {
+    budgetId: string;
+  };
+  BudgetCreate: {
+    categoryId?: string;
+    amount?: number;
+  };
+  BudgetEdit: {
+    budgetId: string;
+  };
+  BudgetCategories: undefined;
+};
+
+// Goal related navigation types
+export type GoalStackParamList = {
+  GoalList: undefined;
+  GoalDetail: {
+    goalId: string;
+  };
+  GoalCreate: {
+    type?: 'savings' | 'debt_payoff' | 'investment';
+    targetAmount?: number;
+  };
+  GoalEdit: {
+    goalId: string;
+  };
+};
+
+// Deep linking types
+export type DeepLinkParams = {
+  screen: keyof RootStackParamList;
+  params?: any;
+};
+
+// Navigation theme type
+export type NavigationTheme = {
+  dark: boolean;
+  colors: {
+    primary: string;
+    background: string;
+    card: string;
+    text: string;
+    border: string;
+    notification: string;
+  };
+};
+
 declare global {
   namespace ReactNavigation {
     interface RootParamList extends RootStackParamList {}

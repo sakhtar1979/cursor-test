@@ -40,6 +40,34 @@ app = FastAPI(
 # Security
 security = HTTPBearer()
 
+# JWT Configuration
+JWT_SECRET = os.getenv("JWT_SECRET", "your-super-secret-jwt-key")
+JWT_ALGORITHM = os.getenv("JWT_ALGORITHM", "HS256")
+
+def verify_token(credentials: HTTPAuthorizationCredentials = Depends(security)):
+    """Verify JWT token and return user information."""
+    try:
+        payload = jwt.decode(credentials.credentials, JWT_SECRET, algorithms=[JWT_ALGORITHM])
+        user_id = payload.get("sub")
+        if not user_id:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Invalid token payload"
+            )
+        return {"user_id": user_id, "email": payload.get("email")}
+    except jwt.ExpiredSignatureError:
+        logger.warning("JWT token expired")
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Token has expired"
+        )
+    except jwt.InvalidTokenError as e:
+        logger.warning("Invalid JWT token", error=str(e))
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid token"
+        )
+
 # Database setup
 DATABASE_URL = os.getenv("DATABASE_URL", "postgresql://mintflow:password@postgres:5432/mintflow")
 engine = create_engine(DATABASE_URL)
